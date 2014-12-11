@@ -1,0 +1,304 @@
+<html>
+<head>
+<title></title>
+<meta charset="utf-8" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+</head>
+<body>
+<div id="output"></div>
+<canvas id="myCanvas" width="600" height="400"></canvas>
+
+<script>
+
+var c=document.getElementById("myCanvas");
+var ctx=c.getContext("2d");
+
+ctx.font='14px Lucida Console';
+
+var timeoffset = Date.now();
+
+var LINEWIDTH = 80;
+var INDENTSIZE = 8;
+var BUFFERMAX = 1000;
+var LINEHEIGHT = 20;
+
+var _topoffset = 0;
+var mycursor = 0;
+var _cursorpos = 0;
+var _bufferlen = 1;
+
+var _buffer = new ArrayBuffer(BUFFERMAX);
+var _bufferview = new Uint8Array(_buffer);
+
+_bufferview[0] = 0x0A;
+
+
+//var to = Uint8Array(buffer, 100, 1000);
+
+
+function insertEle(value, offset){
+
+        //_bufferview.set([value], offset);
+        writeArray(_bufferview, [value], offset);
+}
+
+
+function shiftElements(offset, distance){
+
+        //console.log("offset : %d, distance: %d", offset, distance);
+        var numeles = _bufferlen-offset;
+        var elements = new Uint8Array(_buffer, offset, numeles);
+        
+        var newposition = offset+distance;
+        
+        //_bufferview.set(elements, newposition);
+        writeArray(_bufferview, elements, newposition);
+        _bufferlen+=distance;
+
+
+}
+
+function writeArray(array, eles, pos){
+
+        array.set(eles,pos);
+
+}
+
+function printBuffer(){
+
+        ctx.clearRect(0,0,600,400);
+
+        var elements = new Uint8Array(_buffer, 0, _bufferlen);
+        var startline = 0;
+        var linenumber = 0;
+
+        for (var i = 0; i < _bufferlen; i++){
+                //console.log(elements[i]);
+                if (elements[i] === 10){
+
+                        var line = getLine(startline, i-startline);
+                        ctx.fillText(line,10,linenumber*LINEHEIGHT+LINEHEIGHT);
+                        startline=i+1;
+                        linenumber++;
+                }
+        }
+
+        var out = String.fromCharCode.apply(null, _bufferview);
+        console.log(out);
+
+        
+       
+
+}
+
+function getLine(start, length){
+
+        var line = new Uint8Array(_buffer, start, length);
+        var out = String.fromCharCode.apply(null, line);
+
+        return out;
+        //ctx.fillText(out,10,50);
+
+}
+
+function testInsert(){
+
+        printBuffer();
+        var starttime = Date.now();
+
+        insertAtCursor(56);
+        insertAtCursor(56);
+        insertAtCursor(56);
+        insertAtCursor(56);
+        insertAtCursor(56);
+        insertAtCursor(56);
+        insertAtCursor(56);
+    
+        printBuffer();
+
+        deleteAtCursor(3);
+
+        var endtime = Date.now();
+
+        console.log(endtime- starttime);
+        printBuffer();
+}
+
+
+
+function changeIndent(){
+
+        var linestart = currentLineStart();
+        //console.log("Q?" + linestart + " FF : " + _cursorpos);
+        var temp = (_cursorpos-linestart) % INDENTSIZE;
+
+        
+        var spacestoadd = INDENTSIZE - temp;
+
+        //console.log("new spaces : " + spacestoadd);
+
+        for (var i = 0; i < spacestoadd; i++){
+
+                insertAtCursor(0x20);
+        }
+
+}
+
+//^ 0
+//000000^ 8
+//0000000000000000^ 16
+
+function currentLineStart(){
+
+        var i = _cursorpos - 1;
+
+        while (i>=0 && _bufferview[i] != 0x0A){
+
+                i--;
+        }
+
+        return ++i;
+}
+
+function deleteAtCursor(count){
+
+        count = count || 1;
+
+        if (_cursorpos < count){
+                return;
+        }
+
+
+        shiftElements(_cursorpos, -count);
+
+        updateCursors(-count);
+        //_cursorpos-=count;
+        
+
+}
+
+function insertAtCursor(ele){
+
+        shiftElements(_cursorpos, 1);
+        insertEle(ele, _cursorpos);
+        //_cursorpos++;
+        updateCursors(1);
+}
+
+function processCommand(e){
+
+        switch (e){
+
+        case 13://enter
+                insertAtCursor(0x0A);
+                break;    
+        case 8://backspace   
+                deleteAtCursor(1);
+                break;
+        case 9: //tab 
+                changeIndent();
+                break;
+        default:
+                insertAtCursor(e);
+
+        }
+
+        printBuffer();
+
+}
+
+function sendCommand(e){
+
+        conn.send(e);
+}
+
+function processCharacter(e){
+
+       
+        sendCommand(e);
+        //console.log("character %d", e);
+}
+
+function processKey(e){
+
+        switch (e){
+
+        case 13://enter
+                sendCommand(13);
+                break;
+        case 46://delete       
+        case 8://backspace   
+                sendCommand(8);
+                break;
+        case 9: //tab 
+                sendCommand(9);
+                break;
+        case 37:
+                sendCommand(1);
+                break;
+        case 39:
+                sendCommand(2);
+                break;
+        default:
+                console.log("unknown command %d", e);
+
+        }
+
+        //console.log("command %d", e);
+}
+
+function updateCursors(count){
+
+        console.log("mycursor " + mycursor + "    other cursor : " + _cursorpos);
+
+        if (mycursor <= _cursorpos){
+                mycursor += count;
+                _cursorpos+=count;
+        }
+
+       
+}
+
+
+
+$(document).on("keypress", function (e){
+
+        e.preventDefault();
+        e.which>=32 ? processCharacter(e.which) : processKey(e.keyCode);
+        
+        
+
+});
+
+//testInsert();
+
+var conn = new WebSocket("ws://69.136.92.250:555/");
+//var conn = new WebSocket("ws://localhost:555/");
+
+        conn.onopen = function(event) {
+        //conn.send('something');
+        };
+
+        conn.onmessage = function (event) {
+
+                //console.log(event);
+
+                var data = JSON.parse(event.data);
+
+                _cursorpos = data.pos | 0;
+
+                //console.log("cursor pos : " + _cursorpos);
+
+                processCommand(data.d|0);
+                //divlist=data;
+
+           //console.log(data);
+        };
+
+
+
+</script>
+
+</body>
+</html>
