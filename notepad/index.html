@@ -1,0 +1,474 @@
+<html>
+<head>
+<title></title>
+<meta charset="utf-8" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+</head>
+<body>
+
+<script>
+"use strict";
+
+
+
+var LINEWIDTH = 80;
+var INDENTSIZE = 8;
+var BUFFERMAX = 400;
+var LINEHEIGHT = 20;
+
+var _topoffset = 0;
+var _bufferlen = 1;
+
+var _buffer = new ArrayBuffer(BUFFERMAX);
+var _bufferview = new Uint8Array(_buffer);
+
+_bufferview[0] = 0x0A;
+
+var DELETE = 0;
+var INSERT = 1;
+var SKIP = 2;
+
+var myid = 0;
+var pointers = [];
+
+
+var _time = 0;
+var commandQueue = new CommandQueue();
+pointers[0] = 0;
+pointers[1] = 0;
+pointers[2] = 0;
+pointers[3] = 0;
+pointers[4] = 0;
+pointers[5] = 0;
+pointers[6] = 0;
+pointers[7] = 0;
+pointers[8] = 0;
+
+
+function adjustPointers(distance, index){
+
+        for (var i = 0; i<pointers.length; i++){
+
+                if (pointers[i] >= index){
+                        //console.log("Shift pointer %d", distance);
+                        pointers[i] += distance;
+                }
+        }
+}
+
+
+
+function writeBuffer(eles, offset){
+
+        _bufferview.set(eles,offset);
+}
+
+function insert(number, index){
+
+        //console.log("insert index : " + index);
+        rightShift(index);
+        //buffer[index]=number;
+        writeBuffer([number], index);
+      
+        //_bufferlen++;
+        
+
+}
+
+function remove(index){
+
+        //console.log("removing at index %d..", index);
+        var removed = _buffer[index];
+        leftShift(index+1);
+        //_bufferlen--;
+        return removed;
+        
+}
+
+function skip(id, direction){
+
+        pointers[id] += direction;
+
+}
+
+//AAAAAAAAAB
+
+function bufferShift(offset, distance){
+
+        //console.log("offset : %d, distance: %d", offset, distance);
+        var numeles = _bufferlen-offset;
+        var elements = new Uint8Array(_buffer, offset, numeles);
+        
+        var newposition = offset+distance;
+        
+        //_bufferview.set(elements, newposition);
+
+        writeBuffer(elements, newposition);
+        _bufferlen+=distance;
+
+
+}
+
+function rightShift(index){
+
+        bufferShift(index, 1);
+}
+
+function leftShift(index){
+
+        bufferShift(index, -1);
+
+}
+
+function execute(command){
+
+        var index = pointers[command[1]];
+
+        switch (command[0]){
+
+        case INSERT:
+                insert(command[3], index);
+                adjustPointers(1, index);
+                break;
+
+        case DELETE:
+                printBuffer();
+                adjustPointers(-1, index);
+                index = pointers[command[1]];
+                command[3] = remove(index);
+                //console.log("-----------delete %d at %d", command[3], index);
+                break;        
+        case SKIP:
+                skip(command[1], command[3]);
+                break;
+
+        }
+}
+
+function rewind(command){
+        //console.log("rewind");
+        var index = pointers[command[1]];
+
+        switch (command[0]){
+
+        case INSERT:
+                adjustPointers(-1, index);
+                index = pointers[command[1]];
+                remove(index);
+                break;
+
+        case DELETE:
+                printBuffer();
+                
+                index = pointers[command[1]];
+                //console.log("--------------undo delete %d at %d", command[3], index);
+                
+                insert(command[3], index);
+                adjustPointers(1, index);
+                break;
+
+        case SKIP:
+                skip(command[1], -command[3]);
+                break;
+        }
+
+        
+}
+
+function insertIntoQueue(command){
+
+        var node = commandQueue.peek();
+
+        if (node===null||command[2]>node.command[2]){
+
+                if (node===null){
+
+                }
+                else{
+                //console.log("push to head cause %d is greater than %d", command[2], node.command[2]);
+                }
+                commandQueue.push(command);
+                execute(command);
+                return 0;
+        }
+
+        rewind(node.command);
+        //console.log("%d is less than %d", command[2], node.next.command[2]);
+        while (node.next !==null && command[2]<node.next.command[2]){
+        
+                
+                node = node.next;
+                rewind(node.command);
+                //console.log("%d is less than %d", command[2], node.next.command[2]);
+        }
+
+        commandQueue.insertAfter(node, command);
+        execute(command);
+
+        while(node!==null){
+
+                execute(node.command);
+                node = node.prev;
+
+        }
+
+}
+
+function printBuffer(){
+
+        var temp = new Uint8Array(_buffer, 0, _bufferlen);
+        var out = String.fromCharCode.apply(null, temp);
+        console.log(out);
+        console.log("cursor pos: %d", pointers[myid]);
+}
+
+function printQueue(){
+        var str = '[';
+        var head = commandQueue.peek();
+        while(head){
+                str+=head.command[3];
+                str+=', ';
+                head=head.next;
+        }
+
+        str+= ']';
+
+        //console.log(str);
+}
+
+
+function runtest(){
+        //type, id, time, number
+        
+        processKey(113, 0); //q
+        processKey(119, 1); //w
+        processKey(101, 2); //e
+        processKey(114, 3); //r
+        processKey(116, 4); //t
+
+//qssssyuiowert
+        processKey(121, 13);
+        processKey(117, 14);
+        processKey(105, 15);
+        processKey(111, 16);
+
+        processKey(37, 5);
+        processKey(37, 6);
+        processKey(37, 7);
+        processKey(37, 8);
+
+        processKey(115, 9);
+        processKey(115, 10);
+        processKey(115, 11);
+        processKey(115, 12);
+
+        _time = 17;
+        printBuffer();
+
+        //console.log("[q, s, s, s, s, y, u, i, o, w, e, r, t, ]");
+
+
+
+        //37 39 left right
+        //46 delete
+    
+
+}
+
+function Node(command){
+
+        this.next=null;
+        this.prev=null;
+        this.command=command;
+}
+
+function CommandQueue(){
+
+       
+        var head = null;
+
+        var _insertAfter = function(node, newnode){
+
+             
+
+                if (node.next !== null){
+
+                        node.next.prev = newnode;
+
+                }
+
+                newnode.next = node.next;
+                
+                newnode.prev = node;
+                node.next = newnode;
+
+              
+                //node = newnode;
+
+        };
+
+
+
+        this.push = function(command){
+
+                var temp = new Node(command);
+
+                if (head===null){
+
+                        head = temp;
+                        //temp.prev = null;
+                        //temp.next=null;
+
+                }
+                else{
+                       
+                       temp.next = head;
+                       head.prev = temp;
+                       head = temp;
+
+                }
+
+                
+
+        };
+
+        this.insertAfter = function(node, command){
+
+               var temp = new Node(command);
+
+               _insertAfter(node, temp);
+
+
+        };
+
+        this.peek = function(){
+
+                return head;
+        };
+
+
+}
+
+function processCommand(command){
+
+        var out = JSON.stringify(command);
+        //console.log("Sending : " + out);
+        //conn.send("hhh");
+        conn.send(out);
+        insertIntoQueue(command);
+
+
+}
+
+
+
+
+function sendCommand(t){
+
+        //not
+}
+
+function processKey(e, time){
+
+        time = Date.now();
+
+        switch (e){
+
+        case 13://enter
+                processCommand([INSERT, myid, time, 0x0A]);
+                sendCommand(13);
+                break;
+        case 46://delete       
+        case 8://backspace   
+                processCommand([DELETE, myid, time, -1]);
+                break;
+        case 9: //tab 
+                sendCommand(9);
+                break;
+        case 37:
+                processCommand([SKIP, myid, time, -1]);
+                break;
+        case 39:
+                processCommand([SKIP, myid, time, 1]);
+                break;
+                /*
+        case 53:
+                insertIntoQueue([INSERT, myid, 50, e]);
+                break;
+                */
+        default:
+                processCommand([INSERT, myid, time, e]);
+
+        }
+
+        
+        //console.log("command %d", e);
+}
+
+$(document).on("keypress", function (e){
+
+        e.preventDefault();
+        e.which>=32 ? processKey(e.which) : processKey(e.keyCode);
+        
+        printBuffer();
+        _time++;
+
+});
+
+//212.47.239.127
+var conn = new WebSocket("ws://212.47.239.127:555/");
+//var conn = new WebSocket("ws://localhost:555/");
+
+conn.onopen = function(event) {
+//conn.send('something');
+};
+
+conn.onmessage = function (event) {
+
+        //console.log("rec : " + event.data);
+
+        var packet = JSON.parse(event.data);
+
+
+        switch(packet[0]){
+
+        case 0:
+                
+                myid = packet[1];
+                        
+                break;
+        case 1:
+                var command = [packet[1], packet[2], packet[3], packet[4]];
+                //console.log("update com : " + command);
+
+                //console.log("rec update..." + update.d);
+                if (command[1] !== myid){
+                        //console.log("inserting...");
+                        insertIntoQueue(command);
+                        printBuffer();
+                }
+                break;
+        case 2:
+                var command = [packet[1], packet[2], packet[3], packet[4]];
+                //console.log("update com : " + command);
+
+                //console.log("rec update..." + update.d);
+               
+                        //console.log("inserting...");
+                        insertIntoQueue(command);
+                       printBuffer();
+                
+                break;
+        }
+       
+
+        //console.log(command);
+};
+
+//runtest();
+
+
+</script>
+</body>
+
+</html>
