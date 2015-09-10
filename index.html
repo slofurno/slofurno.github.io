@@ -22,13 +22,11 @@
 
   pre{
     background-color:ghostwhite;
-    padding: 0 20px 0 20px;
+    padding: 0.75em 1.625em;
+    font-size:16px;
+    overflow: auto;
   }
 
-  code {
-    line-height: 1.2;
-    font-size:16px;
-  }
 
   </style>
   </head>
@@ -40,76 +38,72 @@
 </header>
 
 <article>
+Commits on Jun 18, 2015
 <h2>
 profiling in golang
 </h2>
 <p>
-About a month ago I was working on my submission to the third go challenge, building a web application which produces mosaics from uploaded images. Two winners were announced, and my submissioned received a mention as being "very close", with feedback that while my mosaics were "excellent", the runtime was "pretty slow". This is uncharacteristic of my applications, as I will always at least benchmark my runtimes, and if necessary either optimize hotspots or avoid them at a higher level. I knew my runtimes were high (90 seconds), about 60s of which were spent processing, but at the time I did not know about the tools which could make it easy to profile my code at a higer resolution. If i had, only a couple minutes of effort would have cut my processing time in half or better.
-</p>
-<p>
-After the winners were revealed, the source code of all entries were made public on github. Looking at the winning submissions, I realized that their processing was much simplier then mine. While this could have been an advantage for me, any benefits were far outweighed by the effect on the application's runtime.
-
-
-</p>
-<p>
-From the beginning my hypothesis on mosaics was that matching the intensity of the underlying image was key, as I had an idea that people do not perceive differences in color that well compared to grayscale (which is a translation of intensity or luminosity into equal parts rgb). Somehow tiles would have to be selected to fit each part of the mosaic based on their average color, and so I wanted to find a way to downsample the tile images while preserving the intensity. As it turns out, <a href="http://www.4p8.com/eric.brasseur/gamma.html">most image scaling algorithms have an error</a>, which results from averaging colors as if the intensity encoded in the rgb format were on a linear scale. This is analogous to trying to find the hypotenuse of a triangle with the equation A + B = C.
-</p>
-<p>
-My tests showed that the go standard library drawing package made this error. My solution was to manually downsample images by first transforming into a linear colorspace, averaging, and then transforming back to srgb. I could tell my mosaics were improved by this, particularly around areas of detail such as facial features.
+About a month ago I was working on my submission to the third go challenge, building a web application which produces mosaics from uploaded images. Two winners were announced, and my submissioned received a mention as being "very close", with feedback that while my mosaics were "excellent", the runtime was "pretty slow". This is uncharacteristic of my applications, as I am conscious of performance, but I was new to go at the time, and was focusing on learning the language. I knew my runtimes were high (90 seconds), but at the time I did not know about the tools which could make it easy to profile my code at a higer resolution.
 </p>
 
+<img src="static/gochallenge.jpg">
+
 <p>
-Using Dave Cheney's <a href="https://github.com/pkg/profile">profile package</a>, you only need to add two lines of code to generate profiling data while running your application. Afterwards, use pprof with the --text flag (pdf/svg graphs are also available) to generate text output.
+After the winners were revealed, the source code of all entries were made public on github. Looking at the winning submissions, I realized that their image processing was much simplier then mine. While this should have been a winning advantage for me, any benefits were far outweighed by the increase on the application's runtime. The effort I had put into a more robust and correct image matching algorithm paled in comparision to the importance of the overall user experience, where speed and responsiveness are highly rated.
+
+
 </p>
-
-<pre><code>
-p := profile.Start(profile.CPUProfile, profile.ProfilePath("."), profile.NoShutdownHook)
-defer p.Stop()
-</code></pre>
-
-<pre><code>
-go tool pprof --text yourprogram.exe cpu.pprof > profile.txt
-</code></pre>
-
-<pre><code>
-20.17s 18.34%  math.Exp
-13.17s 11.98%  math.Log
-52.94s 48.14%  math.Pow
-58.09s 52.82%  main.sRGBtoLinear
-62.65s 56.97%  main.averageColor
-21.07s 19.16%  main.convertToRGBA
-2s  1.82%  main.lineartosRGB
-</code></pre>
-
 <p>
-From this selection of my profile output, it is clear that two function calls make up most of my processing time. The first is convertToRGBA, which is the step which cleans tile images, converting them from whatever format they were stored in to rgba, which is the format my algorithm works in. The vast majority of the tile source images I am using are in jpeg format, which store color in YCbCr, which must all then be converted to rgba. This is essentially 21 wasted seconds, as I could have chosen to work in the YCbCr colorspace, however jpeg has a number of sub-formats which make it more difficult to work with the underlying color data.
+When I was younger I recieved a black and white mosaic of abraham lincoln as a gift. Even though it was only composed of maybe 20 by 40 images, i remember being impressed at how clear the overall picture was, even though the content of the images was all rather uniform. The images were either landscapes or portraits, yet at a distance the details of the images blurred and their relative lightness or darkness was all that mattered.
 </p>
 
 <p>
-Luckily the biggest waste of time is in math calls, almost exclusivly coming from the sRGBtoLinear function (which in turn is called from averageColor). sRGBtoLinear takes in a uint8, representing one of the red, green, or blue channels, and returns a float64. Because there is at most 256 different inputs, all of these costly calls to math functions can be avoided by instead precomputing a lookup table. In general a map can be used for a lookup, but in this case the keys are ints so this is one of the few opportunities to use an array in go.
+Thus I began with the idea that the intensity of the underlying images was key for producing a good mosaic. After doing some research, I found that there was a common mistake that many naive, and even professional, image scaling algorithms made, which skewed the intensity of the resulting images. You can <a href="http://www.4p8.com/eric.brasseur/gamma.html">read more about this effect here</a>, which results from averaging colors as if the intensity encoded in the rgb format were on a linear scale, when it is really on a power scale to pack more visible detail into a limited 8 bit space. Simply taking the rgb colors and averaging them is analogous to trying to find the hypotenuse of a triangle with the equation A + B = C.
 </p>
+<p>
+My tests showed that the go standard library drawing package made this error. My solution was to write my own code to downsample images by first transforming into a linear colorspace, averaging, and then transforming back to srgb. I could tell my mosaics were improved by this, particularly around areas of detail such as facial features, however this now meant doing an expensive math operation on every pixel of every source image in my pre processing stage.
+</p>
+<pre>
+  func sRGBtoLinear(s uint8) float64 {
 
-<pre><code>
-3.04s  5.77%  main.averageColor
-21.39s 40.59%  main.convertToRGBA
-</code></pre>
+  	var z float64 = float64(s) / 255
+  	var L float64
+
+  	if z > 0.04045 {
+  		L = math.Pow((z+0.055)/(1.055), 2.4)
+  	} else {
+  		L = z / 12.92
+  	}
+
+  	return L
+  }
+</pre>
 
 <p>
-The new profile confirms the improvement, from 62.65s to 3.04s. There is still alot of time being spent converting from YCbCr to RGBA, however this part of my pipeline is limited not just by the time spent processing, but also by the download bandwidth. For each mosaic request, a list of 1500 images is consumed by 200 worker goroutines in parallel, where the image is downloaded -> converted -> downsampled. At least some of the time spent converting will overlap with time otherwise spent waiting on the network.
+Using Dave Cheney's <a href="https://github.com/pkg/profile">profile package</a>, we find that more then half of our overall runtime (including network operations to download our source images) takes place in this conversion function, specifically 48% of our runtime, or 52 seconds, is spent calling the math.Pow function.
+</p>
+
+<p>
+Now that we have established that we have a function containing expensive math calls with only 256 possible inputs which is called millions of times, a possible solution becomes obvious. The new conversion function becomes a lookup and we precompute the results for all possible inputs.
+</p>
+
+<p>
+A new profile confirms the improvement, from 62.65s to 3.04s spent in pre-processing.
 </p>
 
 </article>
 
 <article>
+Commits on Jun 14, 2015
 <h2>firebase as a restful api for android apps</h2>
 <p>
 If you've seen alot of movies, there may come a point where you have trouble finding the next good film to watch. Imdb is a great resource for quickly finding information on a specific movie or actor, but not as great at displaying relationships between them. You may know that Denzel Washington is your favorite actor, but not which of his 54 credits are worth your time.
 </p><p>
 Luckily imdb makes all this information available in text format, which can be parsed, filtered, and transformed into json. Learning from previous work, it was decided to store our movie data somewhere that would not have to be maintained. While not designed to be used as a rest api, Firebase is versatile enough for this purpose. More then just a document store, it provides some sort and search capability which allows us to query without writing our own backend code.
 </p>
-<pre><code>
+<pre>
 x.firebaseio.com/tevs.json?orderBy=\"$key\"&limitToFirst={count}&startAt=\"{key}\"
-</code></pre>
+</pre>
 <p>
 By keying our movies with a url encoded version of their name, this more or less allows us to search by movie title. Again learning from the complexity of previous apps, getting movie recommendations would be a simple two step process. The general flow of our app would be to allow the user to search for a movie they already know, then aggregate all the movies related through the cast and use some heuristic to rank them as suggestions.
 </p>
