@@ -63,7 +63,7 @@ More recently I was sitting around talking to some friends about ideas for some 
 </p>
 
 <p>
-  I wanted the server, written in c#, to have its parts less coupled. I wanted the flexibility to add some features like multiple games going on at once or a global high score.
+  I wanted the server, written in c#, to have its parts less coupled. I wanted the flexibility to add some features like multiple games going on at once or a global high score. So far I've been solving this by using c#'s BufferBlock. Similiar to channels in go, they allow events or objects to be passed around between different workers. I think this should lend itself to players moving between minesweeper games.
 </p>
 
 <p>
