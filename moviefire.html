@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang=en>
+<head>
+<meta charset=utf-8>
+<title>blah</title>
+<script src="moviefire.js"></script>
+</head>
+<body>
+<script>
+
+var _cast = new FirebaseApi("https://firemovies.firebaseio.com/cast");
+var _movies = new FirebaseApi("https://firemovies.firebaseio.com/movies");
+var _movielookup = new FirebaseApi("https://firemovies.firebaseio.com/movielookup");
+
+function Search(str){
+
+	var cleaned = str.replace('\x20','').toLowerCase();
+
+	var results = _movies.Search(cleaned).then(function(res){
+		return res[0];
+	}).then(function(movie){
+		var cast = [];
+		var keys = ["Actors","Directors","Writers"];
+        
+		keys.forEach(function(key){
+			movie[key].forEach(function(member){
+				cast.push(member);
+			});
+		});
+
+		return cast;
+
+	}).then(_cast.Get).then(function(res){
+
+		hashset = {};
+
+		res.forEach(function(r){
+			r.Movies.forEach(function(movie){
+				if (hashset[movie]){
+					hashset[movie]++;
+				}else{
+					hashset[movie]=1;
+				}
+			});
+		});
+
+		kvp=[];
+
+		var keys = Object.keys(hashset).forEach(function(key){
+			kvp.push({key:key,value:hashset[key]});
+		})
+
+		kvp.sort(function(a,b){
+			return -(a.value-b.value);
+		});
+
+		max=Math.min(11,kvp.length);
+
+		var movieids = [];
+
+		//index 0 is the best match == the movie we started with
+		for(var i=1;i<=max;i++){
+			movieids.push(kvp[i].key);
+		}
+
+		return _movielookup.Get(movieids);
+
+	}).then(function(res){
+		res.forEach(function(n){
+			console.log(n.Name,n.Year,n.Rating);
+		})
+	}).catch(function(err){
+		console.log("error",err);
+	});
+	console.log(":S");
+}
+
+
+
+</script>
+</body>
+</html>
