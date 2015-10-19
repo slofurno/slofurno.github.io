@@ -1,0 +1,43 @@
+---
+layout: page
+title: projects
+---
+
+<h3>javascript</h3>
+<p>
+  https://github.com/slofurno/minesweepers
+  A more competetive version of minesweeper, where instead of racing against the clock you compete against other people to flag more mines.  Built to test out Mithril, an alternative to React, but with much better performance. Uses csharp on the server, relying only on the standard library. Features my own minimal implementation of the websocket protocol and some non idiomatic csharp, inspired by go.
+</p>
+
+<p>
+  Created with react and go, <a href="https://github.com/sphillips9/TempestTrackerPOE">TempestTrackers</a> was a web application to facilitate the crowd sourcing of game event information in arpg path of exile. Exposes a rest api and realtime stream using the eventsource protocol, similiar in its design to firebase.
+</p>
+
+<h3>csharp</h3>
+<p>
+  https://github.com/slofurno/fsharp-playground
+  An experiment combining my interest in functional programming and the beta version of mvc6. Inspired by the golang playground, this provides a convenient place to write, execute, save, and share fsharp code. Running on the coreclr, microsoft's open source and cross platform execution enviroment, it is equally capable of being deployed on windows and linux.
+</p>
+
+<p>
+  Any time I work on an app exposing encoded strings, i reach for a library that provides slightly less compact but much more readable 32 bit encoding following crockford's spec. <a href="https://github.com/slofurno/CrockSharp">crocksharp</a> is my open source csharp implementation, <a href="https://www.nuget.org/packages/CrockSharp/0.9.5">available on nuget</a> and compiled to work on both the current dotnet, and the beta of the coreclr.
+</p>
+
+<p>
+  Because my preferred json encoding library, jil, has not been compiled against the coreclr, I've been working on a <a href="https://github.com/slofurno/bare-knuckle-json">bare-knuckle</a> library which does. Also available on <a href="https://www.nuget.org/packages/BareKnuckleJson/0.5.6">nuget</a>, but currently only supports json encoding.
+</p>
+
+<h3>golang</h3>
+<p>
+  https://github.com/slofurno/go-challenge-3
+  A web application to build mosaics built for the 3rd golang challenge.
+</p>
+
+<p>
+https://github.com/slofurno/go-mmorts
+prototype for a mmorts, led to work on an efficient <a href="https://github.com/slofurno/bvh">bvh library</a>.
+</p>
+
+<p>
+  When working on our tempest tracker, <a href="https://github.com/slofurno/gank">Gank</a> provided a way to continually deploy to our test server any pushes that were made to the project repo.
+</p>

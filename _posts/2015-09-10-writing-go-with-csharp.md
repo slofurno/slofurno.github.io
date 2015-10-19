@@ -1,0 +1,20 @@
+---
+title: writing go with csharp
+layout: post
+---
+
+It has been awhile since I've found something to write about. For a long time I was hoping to write an implementation for techempower's performance benchmark, as c# is <a href="https://www.techempower.com/benchmarks/#section=data-r10&hw=ec2&test=json">very poorly represented there.</a> For example, on a 2 core ec2 instance, the only c# framework which ran produced 169 responses per second, a tiny fraction of the 86,480 of the top performer. From experience I know that even running a web api on top of a default httplistener could produce at least 10k json responses a second on similiar hardware, and I hoped to gain even greater throughput by dropping down into lower level but higher performance apis and using socketasynceventargs to try and minimize the stress on the gc.
+
+Long story short, the performance benefits were marginal, and I was running into serious issues on mono. While everything worked fine on windows server, when running on a linux machine under mono it seemed that socket objects were not being properly reused. The webserver would leak filedescriptors, and after serving 50,000 requests it would throw an exception. This is not the first inconsistency I have found between mono and the clr on windows. In the past I have found subtle issues between some lesser user functionality such as memory mapped files.
+
+At some point I may write more about the awesome tempest tracker I created for this past season of path of exile, which was finished but never released to the public. Built in react with a blazing fast go backend, the site was designed to push realtime updates to a large concurrent userbase.
+
+One of the benefits of using React is that you don't have to think much about the state of your ui. Anytime your viewmodel is updated, React will re-render its virtual dom and then calculate which real dom elements need to be updated. This seemed to work great out of the box until I started stress testing the site with hundreds or thousands of updates a second. This was to simluate high user activity, reporting tempests, up or downvoting, adding comments, all of which had to be updated in real time. Its here that React fell over with the sheer quantity of updates. While I solved this by batching updates that were pushed from the server, it felt a little ugly to essentially tell React to re-dif its virtual dom at a pre-defined fps.
+
+More recently I was sitting around talking to some friends about ideas for some multipler game to spend time on between doing other things, and someone floated the idea for a minesweeper game. In typical hackathon style I had a playable game the following day, but since then I have spent some time thinking about how I could refactor both the client and server.
+
+I wanted the server, written in c#, to have its parts less coupled. I wanted the flexibility to add some features like multiple games going on at once or a global high score. So far I've been solving this by using c#'s BufferBlock. Similiar to channels in go, they allow events or objects to be passed around between different workers. I think this should lend itself to players moving between minesweeper games.
+
+The client I had decided to hack together in a very imperative style using divs to represent the tiles of the minesweeper game. While this code performed very well, and was very simple to update with each state change, I felt like it would be a little fragile when I tried adding some of the auxilary features that people were requesting.
+
+My first attempt at a solution was to start using Mithril to render the scoreboard, but I still remaing skeptical the libray won't suffer from the same issue that React did when I try to render the game state with it as well. I've created html5 games in the past in the traditional mvc using the canvas or webgl to render, so I am interested to see how this scales, since it is definaly much easier creating squares in the dom then in opengl.

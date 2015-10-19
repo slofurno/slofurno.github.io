@@ -1,0 +1,10 @@
+title:               Steven LoFurno
+tagline:             a programming blog by a retired pro-gamer
+url:                 http://slofurno.github.io
+paginate:            1
+baseurl:             ""
+
+pages_list:       
+  About: '/about'
+  Posts: '/'
+  Projects: '/projects'
