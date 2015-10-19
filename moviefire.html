@@ -6,11 +6,22 @@
 <script src="moviefire.js"></script>
 </head>
 <body>
+<input id="searchField" type="text"></input><button type="button" id="searchButton" >Search</button>
+<h3 id="movieHeader"></h3>
+<ul id="movieList">
+
+</ul>
 <script>
 
 var _cast = new FirebaseApi("https://firemovies.firebaseio.com/cast");
 var _movies = new FirebaseApi("https://firemovies.firebaseio.com/movies");
 var _movielookup = new FirebaseApi("https://firemovies.firebaseio.com/movielookup");
+var el = document.getElementById("movieList");
+
+document.getElementById("searchButton").addEventListener("click",function(e){
+    e.preventDefault();
+    Search(document.getElementById("searchField").value);
+});
 
 function Search(str){
 
@@ -19,6 +30,7 @@ function Search(str){
 	var results = _movies.Search(cleaned).then(function(res){
 		return res[0];
 	}).then(function(movie){
+        document.getElementById("movieHeader").innerHTML=movie.Name;
 		var cast = [];
 		var keys = ["Actors","Directors","Writers"];
         
@@ -66,8 +78,14 @@ function Search(str){
 		return _movielookup.Get(movieids);
 
 	}).then(function(res){
+        el.innerHTML = "";
+        
 		res.forEach(function(n){
-			console.log(n.Name,n.Year,n.Rating);
+            
+            var li = document.createElement("li");
+            li.innerHTML=n.Name + " ("+n.Year+") " + n.Rating;
+            el.appendChild(li);
+			//console.log(n.Name,n.Year,n.Rating);
 		})
 	}).catch(function(err){
 		console.log("error",err);
