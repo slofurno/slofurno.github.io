@@ -30,10 +30,18 @@
   article{
     margin-top:200px;
   }
+  .caption{
+    width:100%;
+  }
+  .centered{
+    margin:0 auto;
+    display:block;
+  }
 
 
   </style>
 </head>
+
   
   <body>
   
@@ -58,6 +66,30 @@
       
     <main>
         
+<article class="post">
+<h1 class="post-title">meteor-sucks.go</h1>
+<time datetime="2015-10-26T00:00:00-04:00" class="post-date">26 Oct 2015</time>
+  <p>Meteor seems to be pretty hot right now, and I’ve been watching some people build their first meteor apps. Even when they struggled getting things to work, people seemed genuinely enamored with meteor, so I decided to give Meteor a shot and play the role of devils advocate.</p>
+
+<p>In general I prefer to build things out of small composable pieces. In contrast, Meteor is less of a framework and more of a way of life. Because the entire stack is javascript, it provides Meteor the opportunity to own everything from your database to your dom rendering, and everything in between. While Meteor makes it very easy to do things the Meteor way, what happens when you want to do something slightly differently?</p>
+
+<p>At the core of Meteor is the idea of a reactive data source. This is essentially an observable collection with callback methods any time objects in the collection are added, removed, or changed. Meteor calls an object which fulfills this interface a cursor, and by publishing a cursor on the server, Meteor will automagically forward changes in your collection to every attached client.</p>
+
+<p>Out of the box Meteor provides you with a mongodb backed reactive collection. While this gives you something very powerful and useful, it is also very inflexible. Each collection is backed by a table in mongodb, and every change to your collection must go through mongo before being broadcast to users.</p>
+
+<p><img class="centered" src="/static/mongo2.gif" /></p>
+
+<p>Notice how delayed the updates on the right start to get compared to the source on the left when using Mongo (above). Using my purely in memory collection implementation, the delay goes away.</p>
+
+<p><img class="centered" src="/static/array2.gif" /></p>
+
+<p>When I doubled the amount of users again, the example with the Mongo based collection fell over, but the purely in memory based implementation ran just as well as ever.</p>
+
+<p>Of course this is just a toy example, but now that we have dispelled some of the meteor magics, you can use it as a starting point for your own custom reactive collections. One simple example could be a collection which immediately processes all updates in memory, but debounces them before saving to mongo. Now you can keep the speedup without losing the  persistence of a mongo backed collection.</p>
+
+</article>
+
+
 <article class="post">
 <h1 class="post-title">Using dnxcore crossplatform</h1>
 <time datetime="2015-09-21T00:00:00-04:00" class="post-date">21 Sep 2015</time>
@@ -170,8 +202,21 @@ return L
 
 
 
+
     </main>
     
    </div>
+   
+   <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-68120130-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
   </body>
 </html>
