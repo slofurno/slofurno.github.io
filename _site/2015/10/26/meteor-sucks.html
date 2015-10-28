@@ -11,9 +11,18 @@
     margin:40px auto;
     max-width:650px;
     line-height:1.6;
-    font-size:18px;
+    font-size:120%;
     color:#444;
     padding:0 10px;
+  }
+
+  a{
+    text-decoration: none;
+    color: cornflowerblue;
+  }
+
+  a:hover{
+    text-decoration: underline;
   }
 
   h1,h2,h3
@@ -21,12 +30,6 @@
     line-height:1.2;
   }
 
-  pre{
-    background-color:ghostwhite;
-    padding: 0.75em 1.625em;
-    font-size:16px;
-    overflow: auto;
-  }
   article{
     margin-top:200px;
   }
@@ -36,6 +39,15 @@
   .centered{
     margin:0 auto;
     display:block;
+  }
+
+  code{
+    font-size:1em;
+    white-space: pre;
+    background-color:ghostwhite;
+    display:block;
+    overflow: auto;
+    padding: 0.6em 0.8em;
   }
 
 
@@ -78,11 +90,60 @@
 
 <p><img class="centered" src="/static/mongo2.gif" /></p>
 
-<p>Notice how delayed the updates on the right start to get compared to the source on the left when using Mongo (above). Using my purely in memory collection implementation, the delay goes away.</p>
+<p>Notice how delayed the updates on the right start to get compared to the source on the left when using Mongo (above). We could use the <a href="http://devblog.me/meteor-redis.html">meteor-redis</a> plugin, but this is nodejs afterall, why do we need to go through redis when javascript has this built in key value store called object.</p>
+
+<p>To get a quick and dirty object based reactive collection going, we need to satisfy the basic functionality that Meteor expects from a collection.</p>
+
+<pre><code>var isCursor = function (c) {
+  return c &amp;&amp; c._publishCursor;
+};
+
+
+
+https://github.com/meteor/meteor/blob/53cc021064a1dabc02ea811e2a8c2d9977d34c4a/packages/mongo/collection.js
+Mongo.Collection._publishCursor = function (cursor, sub, collection) {
+  var observeHandle = cursor.observeChanges({
+    added: function (id, fields) {
+      sub.added(collection, id, fields);
+    },
+    changed: function (id, fields) {
+      sub.changed(collection, id, fields);
+    },
+    removed: function (id) {
+      sub.removed(collection, id);
+    }
+  });
+...
+};
+</code></pre>
+
+<p>The meteor documentation details the cursor and collection interface, but I’ve found the minimal implmentation looks like</p>
+
+<pre><code>Cursor={forEach, map, fetch, count, observeChanges, _publishCursor}
+Collection={insert, update, upsert, find}
+</code></pre>
+
+<p>Now this is just a minimal implementation of a meteor collection. There is more that needs to be done to integrate it into Meteor so it works correctly with client side subscriptions, but I’ve found two shortcuts to doing so. One is to monkey patch a dummy meteor collection, letting it setup the routes and connection, and just replacing the internal mongo collection with our own.</p>
+
+<pre><code>//both
+Players = new Meteor.Collection('players');
+
+//server
+Meteor.startup(function () {
+  Players._collection = _Players;
+});
+
+Meteor.publish("allplayers", function () {
+  return Players.find();
+});
+
+//client
+Meteor.subscribe('allplayers');
+</code></pre>
 
 <p><img class="centered" src="/static/array2.gif" /></p>
 
-<p>When I doubled the amount of users again, the example with the Mongo based collection fell over, but the purely in memory based implementation ran just as well as ever.</p>
+<p>Compare the result with the original.</p>
 
 <p>Of course this is just a toy example, but now that we have dispelled some of the meteor magics, you can use it as a starting point for your own custom reactive collections. One simple example could be a collection which immediately processes all updates in memory, but debounces them before saving to mongo. Now you can keep the speedup without losing the  persistence of a mongo backed collection.</p>
 
