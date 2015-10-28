@@ -17,11 +17,11 @@ Notice how delayed the updates on the right start to get compared to the source 
 
 To get a quick and dirty object based reactive collection going, we need to satisfy the basic functionality that Meteor expects from a collection.
 
-```
-var isCursor = function (c) {
-return c && c._publishCursor;
-};
-```    
+
+    var isCursor = function (c) {
+      return c && c._publishCursor;
+    };
+
 
 ```
 https://github.com/meteor/meteor/blob/53cc021064a1dabc02ea811e2a8c2d9977d34c4a/packages/mongo/collection.js
