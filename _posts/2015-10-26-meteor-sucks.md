@@ -51,20 +51,20 @@ The meteor documentation details the cursor and collection interface, but I've f
 Now this is just a minimal implementation of a meteor collection. There is more that needs to be done to integrate it into Meteor so it works correctly with client side subscriptions, but I've found two shortcuts to doing so. One is to monkey patch a dummy meteor collection, letting it setup the routes and connection, and just replacing the internal mongo collection with our own.
 
 
-    //both
-    Players = new Meteor.Collection('players');
+  //both
+  Players = new Meteor.Collection('players');
 
-    //server
-    Meteor.startup(function () {
-      Players._collection = _Players;
-    });
+  //server
+  Meteor.startup(function () {
+    Players._collection = _Players;
+  });
 
-    Meteor.publish("allplayers", function () {
-      return Players.find();
-    });
+  Meteor.publish("allplayers", function () {
+    return Players.find();
+  });
 
-    //client
-    Meteor.subscribe('allplayers');
+  //client
+  Meteor.subscribe('allplayers');
 
 
 <img class="centered" src="{{site.baseurl}}/static/array2.gif">
