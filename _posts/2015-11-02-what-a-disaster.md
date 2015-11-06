@@ -13,6 +13,12 @@ mount -t iso9660 /dev/cdrom /media/
 
 echo "/media/apks" >> /etc/apk/repositories
 
+/var/cache/apks
+http://nl.alpinelinux.org/alpine/v3.2/main
+#http://nl.alpinelinux.org/alpine/edge/main
+#http://nl.alpinelinux.org/alpine/edge/testing
+
+
 
 http://wiki.alpinelinux.org/wiki/Connecting_to_a_wireless_access_point
 
@@ -38,3 +44,16 @@ https://github.com/golang/go/search?utf8=%E2%9C%93&q=modify_ldt
     MOVL	$16, DX	// sizeof(user_desc)
     MOVL	$123, AX	// syscall - modify_ldt
     INVOKE_SYSINFO
+
+
+
+wrong version of libuv...
+cause package repo had main commented out
+
+http://git.alpinelinux.org/cgit/aports/tree/main/nodejs/APKBUILD
+
+apk add python openssl-dev zlib-dev libuv-dev	linux-headers paxmark
+
+./configure --shared-zlib --shared-libuv --shared-openssl
+
+paxctl -cm /usr/local/bin/node
