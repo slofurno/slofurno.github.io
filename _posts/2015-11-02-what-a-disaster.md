@@ -22,6 +22,14 @@ http://nl.alpinelinux.org/alpine/v3.2/main
 
 http://wiki.alpinelinux.org/wiki/Connecting_to_a_wireless_access_point
 
+wpa_supplicant -Dwext -iwlan0 -c ./wpa.conf
+udhcpc -i wlan0
+ubuntu: iface wlan0 inet dhcp
+ dhclient -i wlan0
+ or something??
+ /etc/ssh/sshd_config -> make sure rootlogin isnt without-pass
+ service ssh restart
+
 go binary dist is hardcoded to use gcc...
 alpine uses http://www.musl-libc.org/
 go compiler doesnt work
@@ -51,6 +59,7 @@ wrong version of libuv...
 cause package repo had main commented out
 
 http://git.alpinelinux.org/cgit/aports/tree/main/nodejs/APKBUILD
+http://git.alpinelinux.org/cgit/aports/tree/main/nodejs/APKBUILD?id=75cc781209536288b4522d523e2575c184312869
 
 apk add python openssl-dev zlib-dev libuv-dev	linux-headers paxmark
 
