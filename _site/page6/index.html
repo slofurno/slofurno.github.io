@@ -123,6 +123,113 @@
   <li>wait for uuid to be published</li>
 </ul>
 
+<p>before I jump into my implementation, I want to cover a few details of how nanomsg works. The key to nanomsg is the AF_SP_RAW socket. with a normal request and reply AF_SP socket setup, we are limited to a linear request-reply-request-reply pattern. In order to build any kind of interesting system, we need to not only be able to handle requests in any order, but we need to be able to save some kind of information so we can reply to the right socket at a later time. There are versions of the send and recv functions that give us access to the routing header we need, called sendmsg and recvmsg.</p>
+
+<p>The normal send and recv just take a buffer of bytes to send as a message, but the raw versions require you to use a special header struct called nn_msghdr. The msghdr struct gives you the option to provide an array of iovec structs. I havn’t found the need for it yet, so I’ve just been using an iovec of length 1.</p>
+
+<pre><code>struct nn_iovec{
+  size_t iov_len;
+  char *iov_base;
+}
+
+struct nn_msghdr{
+  size_t msg_iovlen;
+  struct nn_iovec msg_iov;
+  size_t msg_controllen;
+  char *msg_control;
+}
+</code></pre>
+
+<p>Heres a quick and dirty example. Garrett is just now working on a pr to allow for internally allocated headers, so I went with a hardcoded length of 64. Nanomsg actually has a default max messagesize it can receive. Since we are dealing in movies and gifs, we can easily have filesizes in the 10’s or 100’s of mbs. Nanomsg won’t accept anything over the NN_RCVMAXSIZE, so here I have set it to -1, which limits the receive size only by our available system memory.</p>
+
+<pre><code>int worker_router = nn_socket(AF_SP_RAW, NN_REP);
+
+nn_bind(worker_router, WORKERROUTER);
+
+int rcv_max = -1;
+nn_setsockopt(worker_router, NN_SOL_SOCKET,
+        NN_RCVMAXSIZE, &amp;rcv_max, sizeof(rcv_max));
+
+
+struct nn_msghdr hdr;
+memset(&amp;hdr, 0, sizeof(hdr));
+
+char *ctrl = malloc(sizeof(char)*64);
+char *body = malloc(sizeof(char)*REC_SIZE);
+
+struct nn_iovec iovec;
+iovec.iov_base = body;
+iovec.iov_len = REC_SIZE;
+
+hdr.msg_iov = &amp;iovec;
+hdr.msg_iovlen = 1;
+hdr.msg_control = ctrl;
+hdr.msg_controllen = 64;
+
+int rc = nn_recvmsg(worker_router, &amp;hdr, NN_DONTWAIT);
+
+chs(workers, char*, ctrl);
+</code></pre>
+
+<p>after running this, I just stick the entire header into a channel. <b>That’s all the information we’ll need to reply to this request later on</b>. You would have to keep track of the size of the header, but for now I’m cheating so I know its always going to be 64. The length of the body data is returned from nn_recvmsg, and the actual body data is stored in our body buffer. Here REC_SIZE is a constant which gives me a buffer thats big enough to receive a message. You can let nanomsg allocate this buffer to the right size for you, passing in a null pointer and NN_MSG as the length, but im going to wait for the next pr for this.</p>
+
+<p>For the system we’re building, the body buffer will contain either nothing (if its the first time a worker has connected), or a uuid + gif.</p>
+
+<p>Keep in mind we are making alot of assumptions to simplify our system. We are assuming that nothing ever goes wrong… our workers will never crash and our network will never partition. With that in mind, any time we get a gif request, we can just pull the next routing header from our channel and use it to construct a reply.</p>
+
+<p>To make things simplier, and also more golike, I made a quick structure called a slice. Just like in go it has a current len and capacity. It made my life easier when reading a large stream of bytes (ie a gif) by taking care of all the allocation and bookkeeping for me. With that in mind, here is the struct used to represent a request, or “job”.</p>
+
+<pre><code>struct gif_request {
+    slice *uuid;
+    slice *data;
+};
+</code></pre>
+
+<p>this is my entire routing loop. It waits for a request, waits for a worker, and then sends the worker all the information it needs to make our gif and let the client know when its ready.</p>
+
+<pre><code>coroutine void start_router(chan workers, int worker_router, chan jobs)
+{
+  void *buf = NULL;
+
+  while(1){
+    //wait for the next job
+    gif_request *job = chr(jobs, gif_request*);
+    size_t sum = job-&gt;uuid-&gt;len-1 + job-&gt;data-&gt;len;
+
+    //ask nanomsg for a buffer big enough for our uuid+video file
+    buf = nn_allocmsg (sum, 0);
+    memcpy(buf, job-&gt;uuid-&gt;bytes, 36);
+    memcpy(buf+36, job-&gt;data-&gt;bytes, job-&gt;data-&gt;len);
+    free_slice(job-&gt;data);
+
+    //wait for a worker
+    char *worker_header = chr(workers, char*);
+
+    struct nn_msghdr hdr;
+    memset(&amp;hdr, 0, sizeof(hdr));
+
+    hdr.msg_control = worker_header;
+    hdr.msg_controllen = 64;
+
+    struct nn_iovec iovec;
+    iovec.iov_base = &amp;buf;
+    //let nanomsg know we using its zero-copy buffer
+    iovec.iov_len = NN_MSG;
+
+    hdr.msg_iov = &amp;iovec;
+    hdr.msg_iovlen = 1;
+
+    nn_sendmsg(worker_router, &amp;hdr, NN_DONTWAIT);
+  }
+}
+</code></pre>
+
+<p>Keep in mind that our worker makes a request to our broker. If we don’t have a high volume of gif requests, a worker might sit in this queue for a long time. Nanomsg will try to resend any request that it doesn’t get a reply from, which is not the behavior we want. The default interval is every 60 seconds. Unfortunately we can’t specify an unlimited interval, but we can set it to 2 billion milliseconds, which is about 23 days.</p>
+
+<pre><code>int rsnd = 2000000000;
+nn_setsockopt(router, NN_REQ, NN_REQ_RESEND_IVL, &amp;rsnd, sizeof(rsnd));
+</code></pre>
+
 </article>
 
 
