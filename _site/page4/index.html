@@ -80,44 +80,48 @@
     <main>
         
 <article class="post">
-<h1 class="post-title">distributed systems with libmill and nanomsg</h1>
+<h1 class="post-title">i don't write c often but when I do it looks like go</h1>
 <time datetime="2015-11-16T00:00:00-05:00" class="post-date">16 Nov 2015</time>
-  <p>In this post I’m going to give an introduction to using the Sústrik stack for developing high performance distributed systems. While both libraries have been out in beta for a couple years, they are becoming stable. libmill recently hit version 1.0, and according to Garrett D’Amore, the top contributer to nanomsg, we may be only a few weeks from a version 1.0 release of nanomsg.</p>
+  <p>Libmill is a c library for working with coroutines in a style that is simliar to golang, complete with a syntactically similiar version of channels, select statements, and goroutines.</p>
 
-<p>Libmill is a c library for working with coroutines in a style that is simliar to golang, complete with a syntactically similiar version of channels, select statements, and goroutines.</p>
-
-<p>Nanomsg is the reference implementation of the scalability protocols, a composable layer on top of the underlying sockets which makes it simple to develop robust distributed systems.</p>
+<p>Nanomsg is the reference implementation of the scalability protocols, a set of communications patterns which are used for creating distributed systems.</p>
 
 <p>While you can use them separately, together they show alot of synergy. Libmill operates in the context of a single thread, so you need to avoid blocking. To make this possible, libmill provides nonblocking versions of io functions like reading from a file or sleeping. Nanomsg provides a flag to allow for either blocking or non blocking io calls. Since we don’t want to block the thread, we can ask nanomsg for a file descripter which will signal when there is data available. We can combine this with libmill’s wait to yield our goroutine until  there is data to be read.</p>
 
-<p>Below is a more conrete example, implementing the subscribe side of the pub-sub pattern. Notice the coroutine keyword, a decorator that libmill uses to indicate a function that will be ran as a coroutine. When we set the topic as “nanomsg”, we will receive any message which has a matching prefix, for example “nanomsg :D”.</p>
+<p>My plan is to build a simple distributed system to process movie files into gifs. Users should be able to upload movie files in common formats eg mp4 or avi, where a broker will distribute the work to the first available worker. This worker will do all the processing, and when its done, will return a gif.</p>
 
-<pre><code>coroutine void subscribe()
-{
-  int subscriber = nn_socket(AF_SP,NN_SUB);
-  char *buffer= NULL;
-  char *topic= "nanomsg";
-  int fd;
-  size_t fd_sz = sizeof(fd);
+<p>This design is called the <a href="http://zguide.zeromq.org/page:all#advanced-request-reply">load balancing broker</a> Whenever a worker is ready to do more work, it will send a request to our broker. Instead of replying immediately, the broker will queue up this worker until it has work for it to do. The worker’s request also serves as an opportunity for the worker to return the result of its last job. When the next job comes in, our broker will get the next worker in the queue and finally send it’s reply with the movie file we wish to process.</p>
 
-  //subscribe to topic "nanomsg"
-  nn_setsockopt(subscriber,NN_SUB,NN_SUB_SUBSCRIBE, topic, strlen(topic));
+<p>I will break this system down into 3 main pieces</p>
 
-  nn_connect(  
-    nn_setsockopt(subscriber,"tcp://127.0.0.1:1234");
+<p>A collect loop, which gets results from the workers</p>
 
-  //get the file descripter which signals when we should read
-  nn_getsockopt(subscriber,NN_SOL_SOCKET,NN_RCVFD,&amp;fd,&amp;fd_sz);
+<ul>
+  <li>receieve worker request</li>
+  <li>read uuid + gif body from worker message</li>
+  <li>enqueue the worker</li>
+  <li>broadcasting the uuid, so the subscribed client knows their gif is ready</li>
+  <li>save the gif</li>
+</ul>
 
-  //libmill waits until the socket has data to be read
-  fdwait(fd,FDW_IN,-1);
-  //using the NN_MSG flag, we let nanomsg allocate the buffer
-  size_t nbytes = nn_recv(subscriber,&amp;buffer,NN_MSG,NN_DONTWAIT);
+<p>A routing loop, which sends jobs to the workers</p>
 
-  printf("%s",buffer);
-  nn_freemsg(buffer);
-}
-</code></pre>
+<ul>
+  <li>wait for next gif request</li>
+  <li>dequeue next worker</li>
+  <li>reply to worker with request uuid + movie file</li>
+</ul>
+
+<p>a http server, which gets jobs from our clients</p>
+
+<ul>
+  <li>listen for post requests</li>
+  <li>receive movie file</li>
+  <li>generate uuid</li>
+  <li>enqueue gif request</li>
+  <li>subscribe to topic uuid</li>
+  <li>wait for uuid to be published</li>
+</ul>
 
 </article>
 
