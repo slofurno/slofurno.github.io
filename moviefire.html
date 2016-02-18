@@ -33,9 +33,12 @@ function Search(str){
         document.getElementById("movieHeader").innerHTML=movie.Name;
 		var cast = [];
 		var keys = ["Actors","Directors","Writers"];
+
+        console.log(movie);
         
 		keys.forEach(function(key){
-			movie[key].forEach(function(member){
+        //FIXME: in case we have no writers etc...
+			(movie[key] || []).forEach(function(member){
 				cast.push(member);
 			});
 		});
@@ -88,7 +91,7 @@ function Search(str){
 			//console.log(n.Name,n.Year,n.Rating);
 		})
 	}).catch(function(err){
-		console.log("error",err);
+		console.log(err.stack);
 	});
 	console.log(":S");
 }
