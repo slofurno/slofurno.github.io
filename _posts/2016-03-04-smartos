@@ -1,0 +1,23 @@
+---
+layout: post
+title: smartos + zones + 1 external ip 
+---
+
+i like to know how things work. it's cool that triton aka smartdatacenter allows you to deply containers to a cluster of smartos machines. While there is a workaround to provision a cluster on a single machine, and there is an alternative dev enviroment called coal, I just wanted to run a couple zones. 
+
+I currently host all my projects on a couple kimsufi servers. I decided to clear off one of them and take advantage of ovh's smartos image. Upon remoting into my new smartos, I realized I was not in linux anymore. Smartos has what is called a global zone, a read only hypervisor zone which hosts all your other zones. Unless you have a history with Solaris, inside you will find yourself using a bunch of unfamiliar tools.
+
+I decided I wanted my system to be setup simliar to what I'm familiar with... a bunch of apps and services hosted on the local network sitting behind nginx. I also decided I was going to let my global zone be my router for my internal network, since it works and it's easier then the alternative.
+
+:
+
+
+
+              |''''''''''''''''''''''''''''''''''''''''''''''''|
+              |              |'''''''| 
+Internet ---> | port 80 -->  | nginx |
+              |              |_______|
+              |     
+              |     |'''''''''''|
+              |     | etherstub |
+
