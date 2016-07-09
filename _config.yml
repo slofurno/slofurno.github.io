@@ -4,7 +4,8 @@ url:                 http://slofurno.github.io
 paginate:            1
 baseurl:             ""
 
-pages_list:       
+pages_list:
   About: '/about'
   Posts: '/'
   Projects: '/projects'
+  Resume: '/resume'
