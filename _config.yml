@@ -3,6 +3,7 @@ tagline:             a programming blog by a retired pro-gamer
 url:                 http://slofurno.github.io
 paginate:            1
 baseurl:             ""
+gems: [jekyll-paginate]
 
 pages_list:
   About: '/about'
