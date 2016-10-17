@@ -8,22 +8,22 @@ Bucknell University, Lewisburg, PA
 Bachelor of Arts, Economics; Mathematics Minor, July 2009
 
 ##### Languages and Technologies
-Most Used:
-Javascript, Go, Elixir, React/Redux, Webpack
-
-Experience Using:
-C, C#, Java (Android), Angular, Docker, AWS
+- elixir, javascript, go, c, c#, java/android
+- docker/swarm, containerpilot, ansible, aws
 
 ##### Work Experience
-Software Developer, Guru (May 2016- present)
+Software Developer, Guru (May 2016- August)
 
-- react/fluxxor/webpack/sass
+- updated build system to take advantage of more modern language features
+- setup automated testing
+- worked on extracting common functionality into reusuable components
 
 Software Developer,  Blue Grotto (September 2014- March 2015)
 
-- AWS integration (s3)
-- Met with clients and implemented front end features
-- Redesigned core system to decrease processing time by 75%
+- created library for using s3 with new async functionality
+- increased reliability and reduced processessing time of key system by 75%
+- improved security of client information
+- various front-end improvements
 
 ##### Projects
 typeracer clone (May, 2016)
